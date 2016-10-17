@@ -1,0 +1,21 @@
+purpose "Un servidor DHCP trivial"
+usage "dhcpd_t [OPTION...]"
+description "Dynamic Host Configuration Protocol Server"
+package "dhcpd_t"
+version "0.1"
+
+#Options
+option "interface" i "Interfaz a usar" string typestr="Interfaz a usar" required
+option "net-config" n "Obtener datos actuales de la red" optional
+option "conf-file" c "Archivo de configuración" string typestr="Archivo de configuración" optional
+option "ip" - "Dirección propia del servidor" string typestr="ip" optional
+option "netmask" - "Dirección de máscara de red" string typestr="netmask" optional
+option "dns" - "Servidores DNS a usar" string typestr="dns" optional multiple(1-2)
+option "range" - "Rango a administrar" string typestr="rango" optional multiple(2)
+option "broadcast" - "Dirección de difusión" string typestr="broadcast" optional
+option "port" - "Puerto del servidor" int typestr="port" optional
+option "t1" - "Tiempo de renovación" int typestr="renewal time(t1)" optional
+option "t2" - "Tiempo de revinculación" int typestr="renewal time(t2)" optional
+option "t3" - "Tiempo de concesión" int typestr="lease time(t3)" optional
+option "gateway" - "Dirección de la puerta de enlace (Gateway)" string typestr="resolver address" optional
+option "timeout" - "Tiempo de espera para cada msg" int typestr="timeout" optional
