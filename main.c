@@ -276,25 +276,25 @@ u_char search_xid ( u_int32_t xid, dhcp_lease *head ) {
             return 1;
     return 0;
 }
-u_char search_lease ( in_addr_t addr,u_char * mac, dhcp_lease *head ) {
+u_char search_lease ( in_addr_t addr, dhcp_lease *head ) {
     for ( dhcp_lease *tmp = head; tmp->next != NULL; tmp = tmp->next )
         if ( tmp->ip.s_addr == addr
-             && tmp->state == S_LEASED
+             && tmp->state == S_LEASED/*
              && *(tmp->mac + 0) == *(mac + 0)
              && *(tmp->mac + 1) == *(mac + 1)
              && *(tmp->mac + 2) == *(mac + 2)
              && *(tmp->mac + 3) == *(mac + 3)
              && *(tmp->mac + 4) == *(mac + 4)
-             && *(tmp->mac + 5) == *(mac + 5) )
+             && *(tmp->mac + 5) == *(mac + 5) */) {
             return 1;
-
+        }
 
     return 0;
 }
-struct dhcp_lease * confirm_lease ( dhcp_lease *head, u_int32_t xid ) {
+struct dhcp_lease * confirm_lease ( dhcp_lease *head, in_addr_t addr ) {
 
     for ( dhcp_lease *tmp = head; tmp != NULL; tmp = tmp->next )
-        if ( tmp->xid == xid && tmp->state == S_LEASED ) {
+        if ( tmp->ip.s_addr == addr && tmp->state == S_LEASED ) {
 
             // ReIniciamos temporizador
             if ( clock_gettime ( CLOCK_MONOTONIC, &tmp->start ) == -1 )
@@ -849,17 +849,19 @@ void wait_request ( dhcp_server *server ) {
                 // Si es una petición para verificar o extender una concesión
                 // Se debe añadir el mismo identificador de cliente
                 // y todos los parametros de su DHCPDISCOVER
-                printf("search_lease(): %d\n",search_lease ( server->msg.ciaddr.s_addr,server->msg.chaddr, server->head ));
+                printf("search_lease(): %d\n",search_lease ( server->msg.ciaddr.s_addr, server->head ));
 
-                if ( server->msg.ciaddr.s_addr != 0 && search_lease ( server->msg.ciaddr.s_addr,server->msg.chaddr, server->head )
+                if ( server->msg.ciaddr.s_addr != 0 && search_lease ( server->msg.ciaddr.s_addr, server->head )
                      ) {
                     puts("Reconfirmamos concesión");// Confirmamos concesión
 
                     // Confirmamos concesión
-                    tmp = confirm_lease ( server->head, server->msg.xid );
+                    tmp = confirm_lease ( server->head, server->msg.ciaddr.s_addr );
 
                     if (!tmp ) {
                         puts ( "Registro no encontrado" );
+                        build_msg(server, tmp, DHCPNAK);
+                        send_msg(server, INADDR_BROADCAST);
                         return;
                     }
                     print_lease_info(tmp);
@@ -869,6 +871,8 @@ void wait_request ( dhcp_server *server ) {
                     // Enviamos DHCPACK
                     send_msg ( server, INADDR_BROADCAST );
                 }
+
+
                 break;
 
             case DHCPDECLINE:
@@ -1022,6 +1026,9 @@ void dhcp_init ( dhcp_server *server ) {
         dhcp_fatal ( "Error from setsockopt() SO_BINDTODEVICE in dhcp_init()", strerror ( errno ) );
 
     if ( server->mode != GET_NETWORK_PARAMETERS ) {
+        //Modo para levantar de cero la interfaz, lo único que falta es que aparezca la bandera IFF_RUNNING activada en la inferfaz (revisada con ifconfig)
+        //No funciona aunque se agregue la bandera correctamente:
+        // -------->>>>>> server->ifr.ifr_flags = tmp | ( IFF_UP | IFF_BROADCAST | IFF_RUNNING | IFF_MULTICAST );*
         /*
         strncpy ( server->ifr.ifr_name, server->interface_name, IFNAMSIZ );
 
